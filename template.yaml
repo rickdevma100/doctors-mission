@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  doctors-mission
+
+  Sample SAM Template for doctors-mission
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+      - x86_64
+    
+  # Api:
+  #   GatewayResponses:
+  #     DEFAULT_5XX:
+  #       ResponseTemplates:
+  #         application/json: "{\"message\": \"Internal Server Error\" }"
+
+Resources:
+    PatientApi:
+      Type: AWS::Serverless::Api
+      Properties:
+        Name: PatientAPI
+        StageName: Dev
+        Models:
+          PatientAppointment:
+            type: object
+            Properties:
+              patientId:
+                type: "string"
+              patientName:
+                type: "string"
+              appointmentdate:
+                type: "string"
+              appointmenttimeslot:
+                type: "string"
+              symptoms:
+                type: "string"
+            required:
+              - patientId
+              - patientName
+              - appointmentdate
+              - appointmenttimeslot 
+
+    CreateDoctorsAppointmentBookingFunction:
+      Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+      Properties:
+        CodeUri: DoctorsMission
+        Handler: com.doctorsmission.services.BookDoctorsAppointmentService::addPatients
+        Events:
+          AppointmentEvents:
+            Type: Api
+            Properties:
+              RestApiId: !Ref PatientApi
+              Path: /createAppointment
+              Method: post
+              RequestModel:
+                Model: PatientAppointment
+                Required: true
+                ValidateBody: true
+    version:
+      Type: AWS::Lambda::Version
+      Properties:
+        FunctionName: !Ref CreateDoctorsAppointmentBookingFunction
+        Description: v1
+    alias:
+      Type: AWS::Lambda::Alias
+      Properties:
+        FunctionName: !Ref CreateDoctorsAppointmentBookingFunction
+        FunctionVersion: !GetAtt version.Version
+        Name: dev
+
+    # EditDoctorsAppointmentBookingFunction:
+    #   Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    #   Properties:
+    #     CodeUri: DoctorsMission
+    #     Handler: com.doctorsmission.services.BookDoctorsAppointmentService::editPatients
+    #     Events:
+    #       AppointmentEvents:
+    #         Type: Api
+    #         Properties:
+    #           RestApiId: !Ref PatientApi
+    #           Path: /createAppointment
+    #           Method: post
+    #           RequestModel:
+    #             Model: PatientAppointment
+    #             Required: true
+    #             ValidateBody: true
+
+    # version:
+    #   Type: AWS::Lambda::Version
+    #   Properties:
+    #     FunctionName: !Ref EditDoctorsAppointmentBookingFunction
+    #     Description: v1
+    # alias:
+    #   Type: AWS::Lambda::Alias
+    #   Properties:
+    #     FunctionName: !Ref EditDoctorsAppointmentBookingFunction
+    #     FunctionVersion: !GetAtt version.Version
+    #     Name: dev
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  PatientApi:
+    Description: "API Gateway endpoint URL for Stage stage for CreateAppointment function"
+    Value: !Sub "https://${PatientApi}.execute-api.${AWS::Region}.amazonaws.com/dev/create-appointment/"
+  CreateDoctorsAppointmentBookingFunction:
+    Description: "CreateDoctorsAppointmentBookingFunction Function ARN"
+    Value: !GetAtt CreateDoctorsAppointmentBookingFunction.Arn
+  CreateDoctorsAppointmentBookingFunctionIamRole:
+    Description: "Implicit IAM Role created for CreateAppointment function"
+    Value: !GetAtt CreateDoctorsAppointmentBookingFunctionRole.Arn
